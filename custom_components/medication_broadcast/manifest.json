@@ -1,0 +1,12 @@
+{
+  "domain": "medication_broadcast",
+  "name": "Medication Broadcast Assistant",
+  "version": "0.3.0",
+  "documentation": "https://example.com/medication_broadcast",
+  "requirements": [],
+  "codeowners": ["@your-github-handle"],
+  "iot_class": "local_push",
+  "config_flow": true,
+  "loggers": ["custom_components.medication_broadcast"],
+  "integration_type": "helper"
+}
