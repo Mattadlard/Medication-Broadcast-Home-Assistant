@@ -1,0 +1,142 @@
+mark_taken:
+  name: Mark dose taken
+  description: Recalculate the next reminder for a medication after confirming a dose.
+  fields:
+    med_id:
+      name: Medication ID
+      description: The ID for this medication.
+      example: estradiol_patch
+      required: true
+      selector:
+        text:
+
+snooze:
+  name: Snooze medication reminder
+  description: Push the next reminder for a medication back by N minutes.
+  fields:
+    med_id:
+      name: Medication ID
+      description: The ID for this medication.
+      example: estradiol_patch
+      required: true
+      selector:
+        text:
+    minutes:
+      name: Minutes
+      description: Number of minutes to delay the next reminder.
+      example: 15
+      required: false
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 240
+          step: 1
+          mode: box
+
+create_temp_course:
+  name: Create temporary course
+  description: >
+    Create a temporary course medication (e.g. 7 days of antibiotics)
+    without editing YAML. Not persisted across Home Assistant restarts.
+  fields:
+    med_id:
+      name: Medication ID
+      description: Short ID for this course (no spaces).
+      example: amoxicillin_7day
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: Human-readable name of the medication.
+      example: Amoxicillin 500mg
+      required: true
+      selector:
+        text:
+    instructions:
+      name: Instructions
+      description: Spoken instructions for the reminder.
+      example: Take one capsule with water.
+      required: false
+      selector:
+        text:
+    start_date:
+      name: Start date
+      description: >
+        Date to start the course (YYYY-MM-DD). Defaults to today if omitted.
+      required: false
+      selector:
+        date:
+    dose_times:
+      name: Dose times
+      description: >
+        List of times per day (HH:MM), either as a comma-separated string
+        like "08:00, 14:00, 20:00" or as a YAML list.
+      required: false
+      selector:
+        text:
+    time:
+      name: Single dose time
+      description: Used if dose_times is not set. One time per day.
+      required: false
+      selector:
+        time:
+    course_length_days:
+      name: Length (days)
+      description: Number of days in the course.
+      default: 7
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+    lead_minutes:
+      name: Lead-time minutes
+      description: Minutes before dose time to broadcast reminder.
+      default: 0
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 180
+          step: 5
+    escalation_minutes:
+      name: Escalation minutes
+      description: >
+        Minutes after due time to send a second nag + optional caregiver alert.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 240
+          step: 5
+    caregiver_notify:
+      name: Notify caregiver
+      description: Whether to notify caregiver on escalation.
+      required: false
+      default: false
+      selector:
+        boolean:
+    caregiver_notify_service:
+      name: Caregiver notify service
+      description: Notify service to call on escalation.
+      required: false
+      selector:
+        text:
+    media_players:
+      name: Media players
+      description: Override speakers for this course.
+      required: false
+      selector:
+        entity:
+          multiple: true
+          domain: media_player
+    message_template:
+      name: Message template
+      description: >
+        Optional template. Use {name} and {instructions}.
+      required: false
+      selector:
+        text:
