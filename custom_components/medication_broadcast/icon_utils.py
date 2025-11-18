@@ -1,96 +1,152 @@
-"""Icon helpers for Medication Broadcast Assistant.
+"""Icon helpers and automatic mirroring for Medication Broadcast Assistant.
 
-All icons are stored locally under the integration directory:
+All source icons are stored under this integration:...
 
     custom_components/medication_broadcast/icons/
 
-There are two icon families:
-    - tablet
-    - refill
+Structure:
 
-Each has multiple sizes: it should. need to double chek 3am....
-    16, 24, 32, 64, 128, 256, 512 px
+    icons/
+      tablet/
+        tablet-16px.png
+        tablet-24px.png
+        tablet-32px.png
+        tablet-64px.png
+        tablet-128px.png
+        tablet-256px.png
+        tablet-512px.png
+      refill/
+        refill-16px.png
+        refill-24px.png
+        refill-32px.png
+        refill-64px.png
+        refill-128px.png
+        refill-256px.png
+        refill-512px.png
 
-This module gives you:
-    - automatic size selection (nearest available)
-    - simple helpers to build either:
-        * internal paths (for reference)
-        * /local/ URLs, if you mirror icons into /config/www
+On setup we mirror these to:
+
+    /config/www/medication_broadcast/tablet/
+    /config/www/medication_broadcast/refill/
+
+So Lovelace can use:
+
+    /local/medication_broadcast/tablet/tablet-128px.png
+    /local/medication_broadcast/refill/refill-128px.png
 """
 
 from __future__ import annotations
 
+import logging
+import os
+import shutil
+from pathlib import Path
 from typing import Literal
 
+from homeassistant.core import HomeAssistant
+
 from .const import (
-    ICON_PATH_TABLET_ROOT,
-    ICON_PATH_REFILL_ROOT,
     ICON_SIZES,
     DEFAULT_ICON_SIZE,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 IconKind = Literal["tablet", "refill"]
 
 
 def _nearest_size(requested: int) -> int:
-    """Pick the nearest available icon size.
-
-    Example:
-        requested = 40  -> 32 (closer than 64)
-        requested = 130 -> 128
-        requested = 3   -> 16
-    """
+    """Pick the nearest available icon size."""
     if requested in ICON_SIZES:
         return requested
-    # Basic nearest neighbour selection
     return min(ICON_SIZES, key=lambda s: abs(s - requested))
 
 
-def _family_root(kind: IconKind) -> str:
-    if kind == "tablet":
-        return ICON_PATH_TABLET_ROOT
-    if kind == "refill":
-        return ICON_PATH_REFILL_ROOT
-    # If someone passes nonsense, fail loudly rather than quietly
-    raise ValueError(f"Unknown icon kind: {kind}")
+def get_integration_icon_path(kind: IconKind, size: int | None = None) -> str:
+    """Internal path inside custom_components for a given icon.
 
+    This path is relative to the Home Assistant config directory. need to fix future ideas though
 
-def get_icon_path(kind: IconKind, size: int | None = None) -> str:
-    """Return the internal icon path for a given family and size.
-
-    This is the path relative to the Home Assistant config directory,
-    pointing into the integration itself, for reference or copying.
-
-    Example result:
+    Example:
         "custom_components/medication_broadcast/icons/tablet/tablet-128px.png"
     """
     if size is None:
         size = DEFAULT_ICON_SIZE
     chosen = _nearest_size(size)
-    root = _family_root(kind)
+
+    if kind == "tablet":
+        root = "custom_components/medication_broadcast/icons/tablet"
+    elif kind == "refill":
+        root = "custom_components/medication_broadcast/icons/refill"
+    else:
+        raise ValueError(f"Unknown icon kind: {kind}")
+
     return f"{root}/{kind}-{chosen}px.png"
 
 
 def get_lovelace_icon_url(kind: IconKind, size: int | None = None) -> str:
-    """Return a /local/ URL for use in Lovelace, assuming icons
-    have been mirrored into /config/www/medication_broadcast. i think. its late im tired,,
+    """Return a /local/ URL for use in Lovelace.
 
-    You are responsible for copying the files, for example:
+    This assumes icons have been mirrored into: i hope so this time. note to self.
 
-        /config/www/medication_broadcast/tablet/tablet-128px.png
-        /config/www/medication_broadcast/refill/refill-128px.png
-
-    Then this will return:
-        "/local/medication_broadcast/tablet/tablet-128px.png"
+        /config/www/medication_broadcast/<kind>/<kind>-<size>px.png
     """
     if size is None:
         size = DEFAULT_ICON_SIZE
     chosen = _nearest_size(size)
 
-    # This mirrors the integration layout under /www/
     if kind == "tablet":
         return f"/local/medication_broadcast/tablet/tablet-{chosen}px.png"
     if kind == "refill":
         return f"/local/medication_broadcast/refill/refill-{chosen}px.png"
 
     raise ValueError(f"Unknown icon kind: {kind}")
+
+
+async def async_ensure_icons_mirrored(hass: HomeAssistant) -> None:
+    """Copy icon files from the integration into /config/www for Lovelace use.
+
+    This is intended to be called on setup. It is idempotent:
+    if files already exist at the destination, they will be overwritten, i hope, its late, 3am..
+    so updates to icons propagate cleanly.
+    """
+    config_dir = Path(hass.config.path(""))
+    source_root = Path(__file__).parent / "icons"
+    dest_root = config_dir / "www" / "medication_broadcast"
+
+    # Run the file operations in an executor to avoid blocking the event loop
+    def _sync() -> None:
+        if not source_root.exists():
+            _LOGGER.warning(
+                "Icon source directory %s does not exist; skipping icon sync.",
+                source_root,
+            )
+            return
+
+        # Mirror each subdirectory (tablet, refill)
+        for sub in ("tablet", "refill"):
+            src_dir = source_root / sub
+            dest_dir = dest_root / sub
+
+            if not src_dir.exists():
+                _LOGGER.warning("Icon source subdirectory %s missing", src_dir)
+                continue
+
+            os.makedirs(dest_dir, exist_ok=True)
+
+            for file in src_dir.iterdir():
+                if not file.is_file():
+                    continue
+                dest_file = dest_dir / file.name
+                try:
+                    shutil.copyfile(file, dest_file)
+                except OSError as exc:
+                    _LOGGER.error("Failed to copy icon %s to %s: %s", file, dest_file, exc)
+                else:
+                    _LOGGER.debug("Mirrored icon %s -> %s", file, dest_file)
+
+        _LOGGER.info(
+            "Medication Broadcast icons mirrored into /config/www/medication_broadcast/"
+        )
+
+    await hass.async_add_executor_job(_sync)
