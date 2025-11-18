@@ -16,12 +16,13 @@ from .const import (
     SERVICE_CREATE_TEMP_COURSE,
 )
 from .medication_manager import MedicationManager
+from .icon_utils import async_ensure_icons_mirrored
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up integration from configuration.yaml."""
+    """Set up integration from configuration.yaml. - note make sure this is the creect file this time.."""
     if DOMAIN not in config:
         return True
 
@@ -33,6 +34,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data[DOMAIN]["manager"] = manager
 
     _register_services(hass, manager)
+
+    # Ensure icons are mirrored into /config/www for Lovelace
+    await async_ensure_icons_mirrored(hass)
 
     # YAML path: load platforms via discovery
     hass.async_create_task(async_load_platform(hass, "sensor", DOMAIN, {}, config))
@@ -51,6 +55,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["manager"] = manager
 
     _register_services(hass, manager)
+
+    # Ensure icons are mirrored into /config/www for Lovelace
+    await async_ensure_icons_mirrored(hass)
 
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "binary_sensor"])
     _LOGGER.info("Medication Broadcast Assistant set up from config entry.")
@@ -79,4 +86,3 @@ def _register_services(hass: HomeAssistant, manager: MedicationManager) -> None:
     hass.services.async_register(DOMAIN, SERVICE_MARK_TAKEN, _handle_mark_taken)
     hass.services.async_register(DOMAIN, SERVICE_SNOOZE, _handle_snooze)
     hass.services.async_register(DOMAIN, SERVICE_CREATE_TEMP_COURSE, _handle_create_temp_course)
-
